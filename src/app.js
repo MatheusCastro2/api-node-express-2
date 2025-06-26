@@ -13,6 +13,8 @@ const app = express();
 app.use(express.json())
 routes(app);
 
+app.use(manipulador404);
+
 app.use(manipuladorDeErros);
 
 export default app
