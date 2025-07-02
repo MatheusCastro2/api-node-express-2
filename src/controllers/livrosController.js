@@ -1,14 +1,29 @@
-import livros from "../models/Livro.js";
+import {autores, livros} from "../models/index.js";
+import RequisicaoIncorreta from "../erros/reqIncorreta.js"
 
 class LivroController {
 
   static listarLivros = async (req, res) => {
     try {
-      const livrosResultado = await livros.find()
-        .populate("autor")
-        .exec();
 
-      res.status(200).json(livrosResultado);
+      let {limite = 5, pagina = 1} = req.query;
+
+      limite = parseInt(limite);
+      pagina = parseInt(pagina);
+
+      if(limite > 0 && pagina>0){
+        const livrosResultado = await livros.find()
+          .skip((pagina - 1) * limite)
+          .limit(limite)
+          .populate("autor")
+          .exec();
+
+        res.status(200).json(livrosResultado);
+      }else{
+        next(new RequisicaoIncorreta());
+      }
+
+
     } catch (erro) {
       res.status(500).json({ message: "Erro interno no servidor" });
     }
@@ -76,20 +91,53 @@ class LivroController {
     }
   };
 
-  static listarLivroPorEditora = async (req, res, next) => {
+  static listarLivroPorFiltro = async (req, res, next) => {
     try {
-      const editora = req.query.editora;
+      const busca = await processaBusca(req.query);
 
-      const livrosResultado = await livros.find({"editora": editora});
+      if(busca !== null){
+        const livrosResultado = await livros
+        .find(busca)
+        .populate("autor");
 
-      res.status(200).send(livrosResultado);
+        res.status(200).send(livrosResultado);
+
+      }else{
+        res.status(200).send([]);
+      }
     } catch (erro) {
       next(erro);
     }
-  }
-
-
-
+  };
 }
 
-export default LivroController
+async function processaBusca(parametros){
+  const {editora, titulo, minP, maxP, nomeAutor} = parametros;
+
+    let busca = {};
+
+  if(editora) busca.editora = editora;
+  if(titulo) busca.titulo = { $regex: titulo, $options: "i" };
+
+  if(minP || maxP) busca.numeroPaginas = {};
+
+  if(minP) busca.numeroPaginas.$gte = minP
+  if(maxP) busca.numeroPaginas.$lte = maxP
+
+  if(nomeAutor){
+    const autor =  await autores.findOne({nome: nomeAutor});
+
+    if(autor !== null){
+      busca.autor = autor._id;
+    }else{
+      busca = null;
+    }
+
+
+  }
+
+  return busca;
+}
+
+
+export default LivroController;
