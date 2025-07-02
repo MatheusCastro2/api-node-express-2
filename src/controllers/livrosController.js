@@ -1,28 +1,15 @@
 import {autores, livros} from "../models/index.js";
-import RequisicaoIncorreta from "../erros/reqIncorreta.js"
+
 
 class LivroController {
 
   static listarLivros = async (req, res) => {
     try {
+      const buscaLivros = livros.find();
 
-      let {limite = 5, pagina = 1} = req.query;
 
-      limite = parseInt(limite);
-      pagina = parseInt(pagina);
-
-      if(limite > 0 && pagina>0){
-        const livrosResultado = await livros.find()
-          .skip((pagina - 1) * limite)
-          .limit(limite)
-          .populate("autor")
-          .exec();
-
-        res.status(200).json(livrosResultado);
-      }else{
-        next(new RequisicaoIncorreta());
-      }
-
+      req.resultado = buscaLivros
+      next();
 
     } catch (erro) {
       res.status(500).json({ message: "Erro interno no servidor" });
@@ -96,11 +83,12 @@ class LivroController {
       const busca = await processaBusca(req.query);
 
       if(busca !== null){
-        const livrosResultado = await livros
+        const livrosResultado =  livros
         .find(busca)
         .populate("autor");
+      req.resultado = livrosResultado
 
-        res.status(200).send(livrosResultado);
+        next();
 
       }else{
         res.status(200).send([]);
